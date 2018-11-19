@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import socket
-import random
 from BeautifulSoup import BeautifulSoup
 from logging.handlers import RotatingFileHandler
 import time
@@ -9,19 +8,14 @@ import mechanize
 import os
 import re
 from random import randint
-from datetime import datetime,timedelta
-from urllib import urlencode
-from planet import Planet, Moon
+from datetime import datetime
 from config import options
-from sim import Sim
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import cookielib
 from lxml import etree
 from player import Player
 from planet import Planet
 from selenium.common.exceptions import NoSuchElementException
-
 socket.setdefaulttimeout(float(options['general']['timeout']))
 
 class Bot(object):
@@ -45,10 +39,6 @@ class Bot(object):
         self.CMD_LOGIN = True
         self.CMD_GET_FARMED_RES = False
 
-        n = 1
-        self.farm_no = []
-        self.bn_farms = 'farms_'
-        self.bn_from_planet = 'from_planet_'
 
         self.SERVER_URL = 'https://' + self.server
         self.PAGES = {
@@ -62,8 +52,6 @@ class Bot(object):
         self.server_time = self.local_time = datetime.now()
         self.time_diff = 0
         self.emergency_sms_sent = False
-        self.transport_manager = TransportManager()
-        self.sim = Sim()
 
     def _get_url(self, page, planet=None):
         url = self.PAGES[page]
@@ -185,7 +173,7 @@ class Bot(object):
             return False
 
         #Chiudo il browser
-        #driver.quit()
+        driver.quit()
         self.logged_in = True
         return True
 
@@ -202,17 +190,27 @@ class Bot(object):
             self.logger.info('Server time: %s, local time: %s' %(self.server_time, self.local_time))
 
     def check_target(self,driver):
+        file = open(options['target']['name']+'.txt', 'a')
+        file.write(str(self.server_time)+'\n')
         for planet in self.player.getPlanets():
             driver.get(self.PAGES['galaxy']+'&galaxy='+planet.coords.split(':')[0]+'&system='+planet.coords.split(':')[1])
             contentWrapepr = driver.find_element_by_id("contentWrapper")
             row = contentWrapepr.find_elements_by_class_name("row")[int(planet.coords.split(':')[2])-1]
-            moonIsPresent='js_no_action' not in row.find_element_by_class_name('moon').get_attribute('class')
-            print(row.find_element_by_class_name("playername").text.split('(')[0].strip()+'--'+row.find_element_by_class_name("planetname").text.strip()+'--'+self.get_activity(row))
-            if (moonIsPresent):
-                moon = row.find_element_by_class_name('moon')
-                print(row.find_element_by_class_name("playername").text.split('(')[0].strip()
-                      + 'MOON--' + row.find_element_by_class_name("planetname").text.strip()
-                      + '--' +self.get_activity(moon))
+            if (row.find_element_by_class_name("playername").text.split('(')[0].strip()==options['target']['name']):
+                moonIsPresent='js_no_action' not in row.find_element_by_class_name('moon').get_attribute('class')
+                #print(planet.coords+'--'+self.get_activity(row))
+
+                if (moonIsPresent):
+                    moon = row.find_element_by_class_name('moon')
+                #   print(planet.coords+'MOON--'+self.get_activity(moon))
+                    file.write(planet.coords + '--' + self.get_activity(row)+'\n')
+                    file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\n')
+                else:
+                    file.write(planet.coords + '--' + self.get_activity(row)+'\n')
+            else:
+                file.write(planet.coords + '-- PIANETA SPOSTATO ('+planet.name+')'+'\n')
+        file.write('----------------------------------------------------------\n\n\n')
+        file.close()
 
     def get_activity(self,row):
         try:
@@ -242,32 +240,17 @@ class Bot(object):
         os.unlink(self.pidfile)
 
 
-    def refresh_mother(self):
-        self.round = self.round + 3
-        if self.round % 5 == 0:
-            self.br.open(self._get_url('main', self.get_mother()))
-            self.logger.info("Mother refreshed")
-            self.send_telegram_message("BOT ATTIVO")
-            self.CMD_LOGIN=False
 
     def start(self):
         self.logger.info('Starting bot')
         self.pid = str(os.getpid())
         self.pidfile = 'bot.pid'
         file(self.pidfile, 'w').write(self.pid)
-
-        while(not self.CMD_STOP):
-                try:
-                    self.getPlanets(options['target']['name'])
-
-                    if(self.CMD_LOGIN):
-                       self.login_lobby()
-                       if(self.logged_in):
-                            self.CMD_LOGIN = False
-
-                except Exception as e:
-                    self.logger.exception(e)
-                self.sleep()
+        try:
+            self.getPlanets(options['target']['name'])
+            self.login_lobby()
+        except Exception as e:
+            self.logger.exception(e)
 
         self.stop()
 
