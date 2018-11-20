@@ -124,7 +124,7 @@ class Bot(object):
 
     def login_lobby(self, username=None, password=None, server=None):
         chrome_options = Options()
-        #chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920x1080")
         username = username or self.username
         password = password or self.password
@@ -194,7 +194,10 @@ class Bot(object):
         file.write(str(self.server_time)+'\n')
         for planet in self.player.getPlanets():
             driver.get(self.PAGES['galaxy']+'&galaxy='+planet.coords.split(':')[0]+'&system='+planet.coords.split(':')[1])
+            self.miniSleep()
             contentWrapepr = driver.find_element_by_id("contentWrapper")
+            self.miniSleep()
+            self.miniSleep()
             row = contentWrapepr.find_elements_by_class_name("row")[int(planet.coords.split(':')[2])-1]
             if (row.find_element_by_class_name("playername").text.split('(')[0].strip()==options['target']['name']):
                 moonIsPresent='js_no_action' not in row.find_element_by_class_name('moon').get_attribute('class')
@@ -208,7 +211,21 @@ class Bot(object):
                 else:
                     file.write(planet.coords + '--' + self.get_activity(row)+'\n')
             else:
-                file.write(planet.coords + '-- PIANETA SPOSTATO ('+planet.name+')'+'\n')
+                driver.find_element_by_id('bar').find_elements_by_tag_name('li')[4].find_element_by_tag_name('a').click()
+                self.miniSleep()
+                driver.find_element_by_id('netz').find_element_by_class_name('tabsbelow').find_elements_by_tag_name('li')[2].find_element_by_tag_name('a').click()
+                self.miniSleep()
+                driver.find_element_by_id("searchText").send_keys(planet.name)
+                driver.find_element_by_id('searchForm').find_elements_by_tag_name('input')[1].click()
+                self.miniSleep()
+                searchTable = driver.find_element_by_class_name('searchTabs')
+                results = searchTable.find_elements_by_tag_name('tr')
+                self.miniSleep()
+                for result in results:
+                    print(result.find_element_by_class_name('userName').text.strip())
+                    if(result.find_element_by_class_name('userName').text.strip()==options['target']['name']):
+                        file.write(planet.coords + '-- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
+
         file.write('----------------------------------------------------------\n\n\n')
         file.close()
 
