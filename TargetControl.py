@@ -259,9 +259,10 @@ class Bot(object):
                     print(result.find_element_by_class_name('userName').text.strip())
                     if(result.find_element_by_class_name('userName').text.strip()==options['target']['name']):
                         file.write(planet.coords + '-- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
-                        planet.coords = result.find_element_by_class_name('position').text.replace('[','').replace(']','')
-                        break
-                filePlanet.write(planet.coords+'  '+planet.name+'  '+planet.id+'\n')
+                        coords = result.find_element_by_class_name('position').text.replace('[','').replace(']','')
+                        if(coords not in self.player.getAllCords()):
+                            break
+                filePlanet.write(coords+'  '+planet.name+'  '+planet.id+'\n')
 
         file.write('----------------------------------------------------------\n\n\n')
         file.close()
