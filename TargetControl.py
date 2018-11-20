@@ -98,10 +98,10 @@ class Bot(object):
         file("galaxy.xml", 'w').write(resp.get_data().decode())
 
 
-    def getPlanets(self, name):
+    def getPlanetsFromApi(self, name):
         self.player = Player(name)
         self.download_api_files()
-
+        file = open('Planets'+options['target']['name']+'.txt', 'a')
         idx = self.getPlayerId(name)
         self.logger.info('%s %s' % (idx, name))
 
@@ -112,8 +112,22 @@ class Bot(object):
                         coords=planet.get('coords'),
                         url=None)
             self.logger.info('%s %s %s' % (pl.coords, pl.name, pl.id))
+            file.write(pl.coords+'  '+pl.name+'  '+pl.id+'\n')
             self.player.addPlanet(pl)
+        file.close()
+        return self.player.getPlanets()
 
+    def getPlanetsFromFile(self, name):
+        self.player = Player(name)
+        file = open('Planets'+options['target']['name']+'.txt', 'r')
+        for line in file:
+            pl = Planet(id=line.split('  ')[2],
+                        name=line.split('  ')[1],
+                        coords=line.split('  ')[0],
+                        url=None)
+            self.logger.info('%s %s %s' % (pl.coords, pl.name, pl.id))
+            self.player.addPlanet(pl)
+        file.close()
         return self.player.getPlanets()
 
     def getPlayerId(self, name):
@@ -191,6 +205,8 @@ class Bot(object):
 
     def check_target(self,driver):
         file = open(options['target']['name']+'.txt', 'a')
+        os.remove('Planets'+options['target']['name']+'.txt')
+        filePlanet = open('Planets'+options['target']['name']+'.txt', 'a')
         file.write(str(self.server_time)+'\n')
         for planet in self.player.getPlanets():
             driver.get(self.PAGES['galaxy']+'&galaxy='+planet.coords.split(':')[0]+'&system='+planet.coords.split(':')[1])
@@ -210,24 +226,46 @@ class Bot(object):
                     file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\n')
                 else:
                     file.write(planet.coords + '--' + self.get_activity(row)+'\n')
+                filePlanet.write(planet.coords + '  ' + planet.name + '  ' + planet.id + '\n')
             else:
                 driver.find_element_by_id('bar').find_elements_by_tag_name('li')[4].find_element_by_tag_name('a').click()
                 self.miniSleep()
-                driver.find_element_by_id('netz').find_element_by_class_name('tabsbelow').find_elements_by_tag_name('li')[2].find_element_by_tag_name('a').click()
+                driver.find_element_by_class_name('tabsbelow').find_elements_by_tag_name('li')[2].find_element_by_tag_name('a').click()
                 self.miniSleep()
                 driver.find_element_by_id("searchText").send_keys(planet.name)
                 driver.find_element_by_id('searchForm').find_elements_by_tag_name('input')[1].click()
                 self.miniSleep()
                 searchTable = driver.find_element_by_class_name('searchTabs')
+               # try:
+               #     pagebar = searchTable.find_element_by_class_name("pagebar")
+                #    pageMax = pagebar.find_elements_by_class_name('ajaxSearch')[int(len(pagebar.find_elements_by_class_name('ajaxSearch')))-1].get_attribute('ref')
+                #    for x in range (1,pageMax):
+               #         if (x==int(pagebar.find_elements_by_tag_name('b').text)+1):
+                #            for page in pagebar.find_elements_by_class_name('ajaxSearch'):
+                #                if(page.text==str(x)):
+                 #                   page.click()
+               #     results = searchTable.find_elements_by_tag_name('tr')
+                #    self.miniSleep()
+                #    for result in results:
+                #       print(result.find_element_by_class_name('userName').text.strip())
+                 #       if(result.find_element_by_class_name('userName').text.strip()==options['target']['name']):
+                 #           file.write(planet.coords + '-- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
+                 #           planet.coords=result.find_element_by_class_name('position').text.replace('[','').replace(']','')
+
+                #except NoSuchElementException:
                 results = searchTable.find_elements_by_tag_name('tr')
                 self.miniSleep()
                 for result in results:
                     print(result.find_element_by_class_name('userName').text.strip())
                     if(result.find_element_by_class_name('userName').text.strip()==options['target']['name']):
                         file.write(planet.coords + '-- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
+                        planet.coords = result.find_element_by_class_name('position').text.replace('[','').replace(']','')
+                        break
+                filePlanet.write(planet.coords+'  '+planet.name+'  '+planet.id+'\n')
 
         file.write('----------------------------------------------------------\n\n\n')
         file.close()
+        filePlanet.close()
 
     def get_activity(self,row):
         try:
@@ -264,7 +302,10 @@ class Bot(object):
         self.pidfile = 'bot.pid'
         file(self.pidfile, 'w').write(self.pid)
         try:
-            self.getPlanets(options['target']['name'])
+            if (os.path.exists('Planets'+options['target']['name']+'.txt')):
+                self.getPlanetsFromFile(options['target']['name'])
+            else:
+                self.getPlanetsFromApi(options['target']['name'])
             self.login_lobby()
         except Exception as e:
             self.logger.exception(e)
