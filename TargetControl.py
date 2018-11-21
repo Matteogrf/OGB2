@@ -61,7 +61,7 @@ class Bot(object):
 
     def _prepare_logger(self):
         self.logger = logging.getLogger("mechanize")
-        fh = RotatingFileHandler('bot.log', maxBytes=100000, backupCount=5)
+        fh = RotatingFileHandler('Target.log', maxBytes=100000, backupCount=5)
         sh = logging.StreamHandler()
         fmt = logging.Formatter(fmt='%(asctime)s %(levelname)s %(message)s', datefmt='%d-%m-%Y %H:%M:%S')
         fh.setFormatter(fmt)
@@ -138,7 +138,7 @@ class Bot(object):
 
     def login_lobby(self, username=None, password=None, server=None):
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920x1080")
         username = username or self.username
         password = password or self.password
@@ -146,7 +146,7 @@ class Bot(object):
         player_id = options['credentials']['player_id']
         number = server[1:4]
         try:
-            driver= webdriver.Chrome(chrome_options=chrome_options)
+            driver= webdriver.Chrome('./chromedriver.exe',chrome_options=chrome_options)
             driver.get("https://it.ogame.gameforge.com")
 
             # Chiudo banner
@@ -179,7 +179,8 @@ class Bot(object):
             soup = BeautifulSoup(html)
             url = 'https://' + server + '/game/lobbylogin.php?' + soup.find('pre').text.split('?')[1].replace('"}','').replace('&amp;', '&')
             driver.get(url)
-            self.check_target(driver)
+            while True:
+                self.check_target(driver)
 
         except Exception as e:
             self.logger.exception(e)
@@ -213,15 +214,11 @@ class Bot(object):
             self.miniSleep()
             contentWrapepr = driver.find_element_by_id("contentWrapper")
             self.miniSleep()
-            self.miniSleep()
             row = contentWrapepr.find_elements_by_class_name("row")[int(planet.coords.split(':')[2])-1]
             if (row.find_element_by_class_name("playername").text.split('(')[0].strip()==options['target']['name']):
                 moonIsPresent='js_no_action' not in row.find_element_by_class_name('moon').get_attribute('class')
-                #print(planet.coords+'--'+self.get_activity(row))
-
                 if (moonIsPresent):
                     moon = row.find_element_by_class_name('moon')
-                #   print(planet.coords+'MOON--'+self.get_activity(moon))
                     file.write(planet.coords + '--' + self.get_activity(row)+'\n')
                     file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\n')
                 else:
@@ -258,15 +255,37 @@ class Bot(object):
                 for result in results:
                     print(result.find_element_by_class_name('userName').text.strip())
                     if(result.find_element_by_class_name('userName').text.strip()==options['target']['name']):
-                        file.write(planet.coords + '-- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
+                        file.write(planet.coords + ' -- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
                         coords = result.find_element_by_class_name('position').text.replace('[','').replace(']','')
                         if(coords not in self.player.getAllCords()):
                             break
-                filePlanet.write(coords+'  '+planet.name+'  '+planet.id+'\n')
+                filePlanet.write(coords+'  '+planet.name+'  '+planet.id+'\l')
 
         file.write('----------------------------------------------------------\n\n\n')
         file.close()
         filePlanet.close()
+        timeSleep = self.getSleep()
+        driver.execute_script('var newItem = document.createElement("LI"); \
+        newItem.setAttribute("id", "controlTime");\
+        newItem.setAttribute("style", "color: red;");\
+        var referenceNode=document.getElementById("playerName"); \
+        var list = referenceNode.parentNode; \
+        list.insertBefore(newItem,referenceNode.nextSibling);')
+        driver.execute_script('var value='+str(timeSleep)+';\
+        var countDown = new Date(new Date().getTime()+(value*1000)).getTime();\
+var x = setInterval(function() {\
+    var now = new Date().getTime();\
+    var distance = countDown - now;\
+    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));\
+    var seconds = Math.floor((distance % (1000 * 60)) / 1000);\
+    document.getElementById("controlTime").innerHTML = "Prossimo controllo: "+minutes + "m " + seconds + "s ";\
+    if (distance < 0) {\
+        clearInterval(x);\
+        document.getElementById("controlTime").innerHTML = "";\
+    }\
+}, 1000);')
+        self.sleep(timeSleep)
+
 
     def get_activity(self,row):
         try:
@@ -279,11 +298,13 @@ class Bot(object):
             return '>60'
 
 
-    def sleep(self):
+    def getSleep(self):
         sleep_options = options['general']
         min = int(sleep_options['seed']) - randint(0, int(sleep_options['check_interval']))
         max = int(sleep_options['seed']) + randint(0, int(sleep_options['check_interval']))
-        sleep_time = randint(min, max)
+        return randint(min, max)
+
+    def sleep(self,sleep_time):
         self.logger.info('Sleeping for %s secs' % sleep_time)
         time.sleep(sleep_time)
 
@@ -294,8 +315,6 @@ class Bot(object):
     def stop(self):
         self.logger.info('Stopping bot')
         os.unlink(self.pidfile)
-
-
 
     def start(self):
         self.logger.info('Starting bot')
