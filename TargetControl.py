@@ -101,10 +101,9 @@ class Bot(object):
     def getPlanetsFromApi(self, name):
         self.player = Player(name)
         self.download_api_files()
-        file = open('Planets'+options['target']['name']+'.txt', 'a')
+        file = open('Planets'+name+'.txt', 'a')
         idx = self.getPlayerId(name)
         self.logger.info('%s %s' % (idx, name))
-
         galaxy = etree.parse('galaxy.xml').getroot()
         for planet in galaxy.findall('planet[@player=\'' + idx + '\']'):
             pl = Planet(id=planet.get('id'),
@@ -112,15 +111,16 @@ class Bot(object):
                         coords=planet.get('coords'),
                         url=None)
             self.logger.info('%s %s %s' % (pl.coords, pl.name, pl.id))
-            file.write(pl.coords+'  '+pl.name+'  '+pl.id+'\n')
+            file.write(pl.coords+'  '+pl.name+'  '+pl.id+'\r\n')
             self.player.addPlanet(pl)
         file.close()
         return self.player.getPlanets()
 
     def getPlanetsFromFile(self, name):
         self.player = Player(name)
-        file = open('Planets'+options['target']['name']+'.txt', 'r')
+        file = open('Planets'+name+'.txt', 'r')
         for line in file:
+            line = line.rstrip('\n')
             pl = Planet(id=line.split('  ')[2],
                         name=line.split('  ')[1],
                         coords=line.split('  ')[0],
@@ -180,7 +180,13 @@ class Bot(object):
             url = 'https://' + server + '/game/lobbylogin.php?' + soup.find('pre').text.split('?')[1].replace('"}','').replace('&amp;', '&')
             driver.get(url)
             while True:
-                self.check_target(driver)
+                for target in options['targets']['name'].split('&&'):
+                    if (os.path.exists('Planets' + target + '.txt')):
+                        self.getPlanetsFromFile(target)
+                    else:
+                        self.getPlanetsFromApi(target)
+                    self.check_target(driver,target)
+            self.sleep()
 
         except Exception as e:
             self.logger.exception(e)
@@ -204,10 +210,10 @@ class Bot(object):
 
             self.logger.info('Server time: %s, local time: %s' %(self.server_time, self.local_time))
 
-    def check_target(self,driver):
-        file = open(options['target']['name']+'.txt', 'a')
-        os.remove('Planets'+options['target']['name']+'.txt')
-        filePlanet = open('Planets'+options['target']['name']+'.txt', 'a')
+    def check_target(self,driver,target):
+        file = open(target+'.txt', 'a')
+        os.remove('Planets'+target+'.txt')
+        filePlanet = open('Planets'+target+'.txt', 'a')
         file.write(str(self.server_time)+'\n')
         for planet in self.player.getPlanets():
             driver.get(self.PAGES['galaxy']+'&galaxy='+planet.coords.split(':')[0]+'&system='+planet.coords.split(':')[1])
@@ -215,15 +221,15 @@ class Bot(object):
             contentWrapepr = driver.find_element_by_id("contentWrapper")
             self.miniSleep()
             row = contentWrapepr.find_elements_by_class_name("row")[int(planet.coords.split(':')[2])-1]
-            if (row.find_element_by_class_name("playername").text.split('(')[0].strip()==options['target']['name']):
+            if (row.find_element_by_class_name("playername").text.split('(')[0].strip()==target):
                 moonIsPresent='js_no_action' not in row.find_element_by_class_name('moon').get_attribute('class')
                 if (moonIsPresent):
                     moon = row.find_element_by_class_name('moon')
-                    file.write(planet.coords + '--' + self.get_activity(row)+'\n')
-                    file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\n')
+                    file.write(planet.coords + '--' + self.get_activity(row)+'\r\n')
+                    file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\r\n')
                 else:
-                    file.write(planet.coords + '--' + self.get_activity(row)+'\n')
-                filePlanet.write(planet.coords + '  ' + planet.name + '  ' + planet.id + '\n')
+                    file.write(planet.coords + '--' + self.get_activity(row)+'\r\n')
+                filePlanet.write(planet.coords + '  ' + planet.name + '  ' + planet.id+'\n')
             else:
                 driver.find_element_by_id('bar').find_elements_by_tag_name('li')[4].find_element_by_tag_name('a').click()
                 self.miniSleep()
@@ -253,38 +259,16 @@ class Bot(object):
                 results = searchTable.find_elements_by_tag_name('tr')
                 self.miniSleep()
                 for result in results:
-                    print(result.find_element_by_class_name('userName').text.strip())
-                    if(result.find_element_by_class_name('userName').text.strip()==options['target']['name']):
-                        file.write(planet.coords + ' -- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\n')
+                    if(result.find_element_by_class_name('userName').text.strip()==target):
+                        file.write(planet.coords + ' -- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\r\n')
                         coords = result.find_element_by_class_name('position').text.replace('[','').replace(']','')
                         if(coords not in self.player.getAllCords()):
+                            filePlanet.write(coords + '  ' + planet.name + '  ' + planet.id+'\n')
                             break
-                filePlanet.write(coords+'  '+planet.name+'  '+planet.id+'\l')
 
         file.write('----------------------------------------------------------\n\n\n')
         file.close()
         filePlanet.close()
-        timeSleep = self.getSleep()
-        driver.execute_script('var newItem = document.createElement("LI"); \
-        newItem.setAttribute("id", "controlTime");\
-        newItem.setAttribute("style", "color: red;");\
-        var referenceNode=document.getElementById("playerName"); \
-        var list = referenceNode.parentNode; \
-        list.insertBefore(newItem,referenceNode.nextSibling);')
-        driver.execute_script('var value='+str(timeSleep)+';\
-        var countDown = new Date(new Date().getTime()+(value*1000)).getTime();\
-var x = setInterval(function() {\
-    var now = new Date().getTime();\
-    var distance = countDown - now;\
-    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));\
-    var seconds = Math.floor((distance % (1000 * 60)) / 1000);\
-    document.getElementById("controlTime").innerHTML = "Prossimo controllo: "+minutes + "m " + seconds + "s ";\
-    if (distance < 0) {\
-        clearInterval(x);\
-        document.getElementById("controlTime").innerHTML = "";\
-    }\
-}, 1000);')
-        self.sleep(timeSleep)
 
 
     def get_activity(self,row):
@@ -297,15 +281,14 @@ var x = setInterval(function() {\
         except NoSuchElementException:
             return '>60'
 
-
-    def getSleep(self):
+    def sleep(self):
         sleep_options = options['general']
         min = int(sleep_options['seed']) - randint(0, int(sleep_options['check_interval']))
         max = int(sleep_options['seed']) + randint(0, int(sleep_options['check_interval']))
-        return randint(min, max)
-
-    def sleep(self,sleep_time):
+        sleep_time = randint(min, max)
         self.logger.info('Sleeping for %s secs' % sleep_time)
+        if self.active_attacks:
+            sleep_time = 60
         time.sleep(sleep_time)
 
     def miniSleep(self):
@@ -322,10 +305,6 @@ var x = setInterval(function() {\
         self.pidfile = 'bot.pid'
         file(self.pidfile, 'w').write(self.pid)
         try:
-            if (os.path.exists('Planets'+options['target']['name']+'.txt')):
-                self.getPlanetsFromFile(options['target']['name'])
-            else:
-                self.getPlanetsFromApi(options['target']['name'])
             self.login_lobby()
         except Exception as e:
             self.logger.exception(e)
