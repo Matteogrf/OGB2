@@ -311,8 +311,8 @@ class Bot(object):
 
         self.stop()
 
-if __name__ == "__main__":
-    credentials = options['credentials']
-    bot = Bot(credentials['username'], credentials['password'], credentials['server'])
-    bot.start()
+#if __name__ == "__main__":
+   # credentials = options['credentials']
+  #  bot = Bot(credentials['username'], credentials['password'], credentials['server'])
+    #bot.start()
 

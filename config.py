@@ -56,6 +56,7 @@ class Options(watchdog.events.FileSystemEventHandler):
 
         return dict(self._config.items(section))
 
+
     @property
     def valid(self):
         return self._is_config_valid
