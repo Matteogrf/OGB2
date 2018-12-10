@@ -1,10 +1,16 @@
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 import datetime
+from datetime import date
 
 class ExcelManager(object):
 
-    def __init__(self):
-        pass
+
+    def __init__(self, targhet):
+        self.dataA3 = date(2018, 12, 01)
+        self.targhet = targhet
+        self.file_name = targhet + '.xlsx'
+        self.wb = self.load_excel(self.file_name)
 
     def load_excel(self, player):
         try:
@@ -33,7 +39,6 @@ class ExcelManager(object):
         now = datetime.datetime.now ()
         time = str(now.hour) + str(now.minute) + '00'
         nOra = int(time)
-        print time
 
         i = 3
         while i < 50:
@@ -44,18 +49,20 @@ class ExcelManager(object):
                 return i
         return i
 
+    def findCol(self, ws):
+        now = datetime.datetime.now()
+        oggi = date(now.year, now.month, now.day)
+        delta = oggi - self.dataA3
+        return get_column_letter(delta.days + 2)
 
-    def write_time(self, target, coords, isMoon, time):
-        file_name = target + '.xlsx'
-        wb = self.load_excel(file_name)
-        ws = self.select_sheet(wb, coords, isMoon)
-
+    def write_time(self, coords, isMoon, time):
+        ws = self.select_sheet(self.wb, coords, isMoon)
         row = self.findRow(ws)
-
-        wb.save(file_name)
-        wb.close()
+        col = self.findCol(ws)
+        ws[col+str(row)] = time
+        self.wb.save(self.file_name)
 
 
 if __name__ == '__main__':
-    excelManager = ExcelManager()
-    excelManager.write_time("Prova", "Ciao", True, 50)
+    excelManager = ExcelManager("Prova")
+    excelManager.write_time("Ciao", True, 50)

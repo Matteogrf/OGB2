@@ -146,7 +146,8 @@ class Bot(object):
         player_id = options['credentials']['player_id']
         number = server[1:4]
         try:
-            driver= webdriver.Chrome('./chromedriver.exe',chrome_options=chrome_options)
+            #driver= webdriver.Chrome('./chromedriver.exe',chrome_options=chrome_options)
+            driver = webdriver.Chrome ()
             driver.get("https://it.ogame.gameforge.com")
 
             # Chiudo banner
@@ -170,8 +171,7 @@ class Bot(object):
             time.sleep(2)
 
             # Recupero URL login
-            driver.get(
-                "https://lobby-api.ogame.gameforge.com/users/me/loginLink?id=" + player_id + "&server[language]=it&server[number]=" + number)
+            driver.get("https://lobby-api.ogame.gameforge.com/users/me/loginLink?id=" + player_id + "&server[language]=it&server[number]=" + number)
             time.sleep(2)
 
             # Richiamo il login
@@ -215,6 +215,7 @@ class Bot(object):
         os.remove('Planets'+target+'.txt')
         filePlanet = open('Planets'+target+'.txt', 'a')
         file.write(str(self.server_time)+'\n')
+
         for planet in self.player.getPlanets():
             driver.get(self.PAGES['galaxy']+'&galaxy='+planet.coords.split(':')[0]+'&system='+planet.coords.split(':')[1])
             self.miniSleep()
@@ -227,8 +228,12 @@ class Bot(object):
                     moon = row.find_element_by_class_name('moon')
                     file.write(planet.coords + '--' + self.get_activity(row)+'\r\n')
                     file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\r\n')
+                    self.player.logAttivita(planet.coords, True, self.get_activity(moon))
+                    self.player.logAttivita(planet.coords, False, self.get_activity())
                 else:
                     file.write(planet.coords + '--' + self.get_activity(row)+'\r\n')
+                    self.player.logAttivita(planet.coords, False, self.get_activity ())
+
                 filePlanet.write(planet.coords + '  ' + planet.name + '  ' + planet.id+'\n')
             else:
                 driver.find_element_by_id('bar').find_elements_by_tag_name('li')[4].find_element_by_tag_name('a').click()
