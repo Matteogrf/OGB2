@@ -49,7 +49,7 @@ class ExcelManager(object):
                 return i
         return i
 
-    def findCol(self, ws):
+    def findCol(self):
         now = datetime.datetime.now()
         oggi = date(now.year, now.month, now.day)
         delta = oggi - self.dataA3
@@ -58,11 +58,19 @@ class ExcelManager(object):
     def write_time(self, coords, isMoon, time):
         ws = self.select_sheet(self.wb, coords, isMoon)
         row = self.findRow(ws)
-        col = self.findCol(ws)
-        ws[col+str(row)] = time
+        col = self.findCol()
+
+        val = ws[col+str(row)].value
+
+        if val == None:
+            ws[col+str(row)] = time
+        else:
+            if time < int(val):
+                ws[col + str(row)] = time
+
         self.wb.save(self.file_name)
 
 
 if __name__ == '__main__':
     excelManager = ExcelManager("Prova")
-    excelManager.write_time("Ciao", True, 50)
+    excelManager.write_time("Ciao", True, 10)
