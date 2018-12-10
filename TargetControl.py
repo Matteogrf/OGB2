@@ -229,10 +229,10 @@ class Bot(object):
                     file.write(planet.coords + '--' + self.get_activity(row)+'\r\n')
                     file.write(planet.coords + 'MOON--' + self.get_activity(moon)+'\r\n')
                     self.player.logAttivita(planet.coords, True, self.get_activity(moon))
-                    self.player.logAttivita(planet.coords, False, self.get_activity())
+                    self.player.logAttivita(planet.coords, False, self.get_activity(row))
                 else:
                     file.write(planet.coords + '--' + self.get_activity(row)+'\r\n')
-                    self.player.logAttivita(planet.coords, False, self.get_activity ())
+                    self.player.logAttivita(planet.coords, False, self.get_activity(row))
 
                 filePlanet.write(planet.coords + '  ' + planet.name + '  ' + planet.id+'\n')
             else:

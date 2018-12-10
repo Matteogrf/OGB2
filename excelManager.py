@@ -23,9 +23,9 @@ class ExcelManager(object):
         return wb
 
     def select_sheet(self, wb, coords, isMoon):
-        sheet_name = coords;
+        sheet_name = coords.replace(":", "-");
         if isMoon:
-            sheet_name = coords + ' (Luna)'
+            sheet_name = sheet_name + ' (Luna)'
 
         try:
             ws = wb.get_sheet_by_name(sheet_name)
@@ -67,6 +67,8 @@ class ExcelManager(object):
                 ws[col + str(row)] = time
 
     def write_time(self, coords, isMoon, time):
+        if(time == ">60"):
+            time = 999
 
         ws = self.select_sheet(self.wb, coords, isMoon)
         row = self.findRow(ws)
