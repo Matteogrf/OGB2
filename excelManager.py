@@ -37,14 +37,16 @@ class ExcelManager(object):
 
     def findRow(self, ws):
         now = datetime.datetime.now ()
-        time = str(now.hour) + str(now.minute) + '00'
+        time = str(now.hour).zfill(2) + str(now.minute).zfill(2) + '00'
         nOra = int(time)
 
         i = 3
+
         while i < 50:
             i = i + 1
             _min_t = int(str(ws['A' + str(i)].value).replace(':', ''))
             _max_t = int(str(ws['A' + str(i+1)].value).replace(':', ''))
+
             if (nOra > _min_t) and (nOra < _max_t):
                 return i
         return i
@@ -55,21 +57,26 @@ class ExcelManager(object):
         delta = oggi - self.dataA3
         return get_column_letter(delta.days + 2)
 
-    def write_time(self, coords, isMoon, time):
-        ws = self.select_sheet(self.wb, coords, isMoon)
-        row = self.findRow(ws)
-        col = self.findCol()
-
-        val = ws[col+str(row)].value
+    def scrivi(self, ws, row, col, time):
+        val = ws[col + str(row)].value
 
         if val == None:
-            ws[col+str(row)] = time
+            ws[col + str(row)] = time
         else:
             if time < int(val):
                 ws[col + str(row)] = time
 
-        self.wb.save(self.file_name)
+    def write_time(self, coords, isMoon, time):
 
+        ws = self.select_sheet(self.wb, coords, isMoon)
+        row = self.findRow(ws)
+        col = self.findCol()
+        self.scrivi(ws, row, col, time);
+
+        ws = self.wb.get_sheet_by_name("Attivita Generale")
+        self.scrivi(ws, row, col, time);
+
+        self.wb.save(self.file_name)
 
 if __name__ == '__main__':
     excelManager = ExcelManager("Prova")
