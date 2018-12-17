@@ -254,7 +254,7 @@ class Bot(object):
         try:
             activity = row.find_element_by_class_name("activity")
             if 'minute15' in activity.get_attribute('class'):
-                return '0'
+                return '1'
             else:
                 return activity.text.strip()
         except NoSuchElementException:

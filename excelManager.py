@@ -44,28 +44,33 @@ class ExcelManager(object):
 
     def findCol(self, ws):
         now = datetime.datetime.now()
-        time = str(now.hour).zfill(2) + str(now.minute).zfill(2) + '00'
+        time = str(now.hour).zfill(2) + str(now.minute).zfill(2)
         nOra = int(time)
 
         i = 2
 
-        while i < 50:
+        while i < 49:
             i = i + 1
-            _min_t = int(str(ws[get_column_letter(i) + str(4)] .value).replace(':', ''))
-            _max_t = int(str(ws[get_column_letter(i+1) + str(4)] .value).replace(':', ''))
+
+            cella = get_column_letter(i) + str(4)
+            calla2 = get_column_letter(i+1) + str(4)
+
+            _min_t = int(str(ws[cella].value).replace(':', ''))
+            _max_t = int(str(ws[calla2].value).replace(':', ''))
 
             if (nOra > _min_t) and (nOra < _max_t):
                 return get_column_letter(i)
+
         return get_column_letter(i)
 
     def scrivi(self, ws, row, col, time):
         val = ws[col + str(row)].value
 
         if val == None:
-            ws[col + str(row)] = time
+            ws[col + str(row)] = int(time)
         else:
-            if time < int(val):
-                ws[col + str(row)] = time
+            if int(time) < int(val):
+                ws[col + str(row)] = int(time)
 
     def write_time(self, coords, isMoon, time):
         if(time == ">60"):
