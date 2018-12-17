@@ -100,7 +100,7 @@ class ControlTarget:
         self.lblPlayerId.configure(background="#d9d9d9")
         self.lblPlayerId.configure(disabledforeground="#a3a3a3")
         self.lblPlayerId.configure(foreground="#000000")
-        self.lblPlayerId.configure(text='''PlayerId''')
+        self.lblPlayerId.configure(text='''Player''')
 
         self.lblSettings = tk.Label(top)
         self.lblSettings.place(relx=0.0, rely=0.3, height=26, width=507)
@@ -230,7 +230,7 @@ t=numero compreso tra 750 e 850''')
         self.ePlayerId.configure(foreground="#000000")
         self.ePlayerId.configure(insertbackground="black")
         self.ePlayerId.configure(width=314)
-        self.ePlayerId.insert(0,options['credentials']['player_id'])
+        self.ePlayerId.insert(0, options['credentials']['player'])
 
         self.eTargets = tk.Entry(top)
         self.eTargets.place(relx=0.039, rely=0.82,height=34, relwidth=0.915)
@@ -274,16 +274,15 @@ t=numero compreso tra 750 e 850''')
         options.updateValue('credentials', 'server', self.eServer.get())
         options.updateValue('credentials', 'username', self.eUserName.get())
         options.updateValue('credentials', 'password', self.ePassword.get())
-        options.updateValue('credentials', 'player_id', self.ePlayerId.get())
+        options.updateValue('credentials', 'player', self.ePlayerId.get())
         options.updateValue('general', 'seed', self.eSeed.get())
         options.updateValue('general', 'check_interval', self.eInterval.get())
         options.updateValue('targets', 'name', self.eTargets.get())
 
     def startBot(self):
         self.saveConfig()
-        bot = Bot(options['credentials']['username'], options['credentials']['password'], options['credentials']['server'])
+        bot = Bot()
         bot.start()
-
 
 if __name__ == '__main__':
     vp_start_gui()

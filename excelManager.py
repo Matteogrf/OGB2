@@ -7,7 +7,7 @@ class ExcelManager(object):
 
 
     def __init__(self, targhet):
-        self.dataA3 = date(2018, 12, 01)
+        self.dataA5 = date(2018, 12, 16)
         self.targhet = targhet
         self.file_name = targhet + '.xlsx'
         self.wb = self.load_excel(self.file_name)
@@ -35,27 +35,28 @@ class ExcelManager(object):
             ws.title = sheet_name
         return ws
 
-    def findRow(self, ws):
-        now = datetime.datetime.now ()
+    def findRow(self):
+        now = datetime.datetime.now()
+        oggi = date(now.year, now.month, now.day)
+        delta = oggi - self.dataA5
+        return delta.days + 5
+
+
+    def findCol(self, ws):
+        now = datetime.datetime.now()
         time = str(now.hour).zfill(2) + str(now.minute).zfill(2) + '00'
         nOra = int(time)
 
-        i = 3
+        i = 2
 
         while i < 50:
             i = i + 1
-            _min_t = int(str(ws['A' + str(i)].value).replace(':', ''))
-            _max_t = int(str(ws['A' + str(i+1)].value).replace(':', ''))
+            _min_t = int(str(ws[get_column_letter(i) + str(4)] .value).replace(':', ''))
+            _max_t = int(str(ws[get_column_letter(i+1) + str(4)] .value).replace(':', ''))
 
             if (nOra > _min_t) and (nOra < _max_t):
-                return i
-        return i
-
-    def findCol(self):
-        now = datetime.datetime.now()
-        oggi = date(now.year, now.month, now.day)
-        delta = oggi - self.dataA3
-        return get_column_letter(delta.days + 2)
+                return get_column_letter(i)
+        return get_column_letter(i)
 
     def scrivi(self, ws, row, col, time):
         val = ws[col + str(row)].value
@@ -71,8 +72,8 @@ class ExcelManager(object):
             time = 999
 
         ws = self.select_sheet(self.wb, coords, isMoon)
-        row = self.findRow(ws)
-        col = self.findCol()
+        row = self.findRow()
+        col = self.findCol(ws)
         self.scrivi(ws, row, col, time);
 
         ws = self.wb.get_sheet_by_name("Attivita Generale")
