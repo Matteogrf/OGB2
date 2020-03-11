@@ -16,12 +16,14 @@ from lxml import etree
 from player import Player
 from planet import Planet
 from selenium.common.exceptions import NoSuchElementException
+from datetime import date
 socket.setdefaulttimeout(float(options['general']['timeout']))
 
 class Bot(object):
     HEADERS = [('User-agent','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36')]
     RE_BUILD_REQUEST = re.compile(r"sendBuildRequest\(\'(.*)\', null, 1\)")
     RE_SERVER_TIME = re.compile(r"var serverTime=new Date\((.*)\);var localTime")
+    LANDING_PAGE = 'https://lobby.ogame.gameforge.com'
 
     def __init__(self):
 
@@ -33,7 +35,7 @@ class Bot(object):
         self._prepare_logger()
         self._prepare_browser()
         self.round = 0
-        self.player=''
+        self.players = []
 
         self.CMD_STOP = False
         self.CMD_FARM = True
@@ -58,7 +60,7 @@ class Bot(object):
         self.emergency_sms_sent = False
 
         chrome_options = Options()
-        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920x1080")
         self.driver = webdriver.Chrome('./chromedriver.exe',chrome_options=chrome_options)
 
@@ -105,8 +107,8 @@ class Bot(object):
         file("galaxy.xml", 'w').write(resp.get_data().decode())
 
 
-    def getPlanetsFromApi(self, name):
-        self.player = Player(name)
+    def getPlanetsFromApi(self, name, data):
+        player = Player(name, data)
         filePlanets = open('Planets'+name+'.txt', 'a')
         idx = self.getPlayerId(name)
         self.logger.info('%s %s' % (idx, name))
@@ -118,13 +120,13 @@ class Bot(object):
                         url=None)
             self.logger.info('%s %s %s' % (pl.coords, pl.name, pl.id))
             filePlanets.write(pl.coords+'  '+pl.name+'  '+pl.id+'\n')
-            self.player.addPlanet(pl)
+            player.addPlanet(pl)
 
         filePlanets.close()
-        return self.player.getPlanets()
+        return player
 
-    def getPlanetsFromFile(self, name):
-        self.player = Player(name)
+    def getPlanetsFromFile(self, name, data):
+        player = Player(name, data)
         file = open('Planets'+name+'.txt', 'r')
         for line in file:
             line = line.rstrip('\n')
@@ -132,9 +134,9 @@ class Bot(object):
                         name=line.split('  ')[1],
                         coords=line.split('  ')[0],
                         url=None)
-            self.player.addPlanet(pl)
+            player.addPlanet(pl)
         file.close()
-        return self.player.getPlanets()
+        return player
 
     def getPlayerId(self, name):
         players = etree.parse('players.xml').getroot()
@@ -155,7 +157,12 @@ class Bot(object):
 
         number = server[1:4]
         try:
-            self.driver.get("https://it.ogame.gameforge.com")
+            try:
+                self.driver.get("https://it.ogame.gameforge.com")
+            except:
+                self.logger.info('va bhe')
+
+            time.sleep(4)
 
             # Chiudo banner
             try:
@@ -163,29 +170,41 @@ class Bot(object):
             except:
                 self.logger.info('No banner found')
 
-            # Vado sulla Login Form
-            self.driver.find_element_by_link_text("Login").click()
-
-            # Immetto Credenziali
-            usernameLogin = self.driver.find_element_by_id("usernameLogin")
-            passwordLogin = self.driver.find_element_by_id("passwordLogin")
-
-            usernameLogin.send_keys(username)
-            passwordLogin.send_keys(password)
-
-            # Clicco su login
-            self.driver.find_element_by_id("loginSubmit").click()
             time.sleep(2)
+            try:
+                self.driver.find_element_by_xpath("//span[contains(text(), 'Log in')]").click()
+
+                # Immetto Credenziali
+                usernameLogin = self.driver.find_element_by_name("email")
+                passwordLogin = self.driver.find_element_by_name("password")
+
+                usernameLogin.send_keys(username)
+                passwordLogin.send_keys(password)
+
+                # Clicco su login
+                self.driver.find_element_by_class_name("button-primary").submit()
+
+                time.sleep(7)
+            except:
+                self.logger.info('Sono gia nella lobby')
 
             # Recupero URL login
-            self.driver.get("https://lobby-api.ogame.gameforge.com/users/me/loginLink?id=" + player_id + "&server[language]=it&server[number]=" + number)
-            time.sleep(2)
+            try:
+                self.driver.get(
+                    "https://lobby.ogame.gameforge.com/api/users/me/loginLink?id=" + player_id + "&server[language]=it&server[number]=" + number)
+            except:
+                self.logger.info('Errore')
+
+            time.sleep(7)
 
             # Richiamo il login
             html = self.driver.page_source
             soup = BeautifulSoup(html)
             url = 'https://' + server + '/game/lobbylogin.php?' + soup.find('pre').text.split('?')[1].replace('"}','').replace('&amp;', '&')
-            self.driver.get(url)
+            try:
+                self.driver.get(url)
+            except:
+                time.sleep(3)
 
         except Exception as e:
             self.logger.exception(e)
@@ -207,45 +226,29 @@ class Bot(object):
 
             self.logger.info('Server time: %s, local time: %s' %(self.server_time, self.local_time))
 
-    def check_target(self, driver, target):
+    def check_target(self, driver, player):
 
-        for planet in self.player.getPlanets():
+        for planet in player.getPlanets():
             driver.get(self.PAGES['galaxy']+'&galaxy='+planet.coords.split(':')[0]+'&system='+planet.coords.split(':')[1])
             self.miniSleep()
             self.miniSleep()
-            contentWrapepr = driver.find_element_by_id("contentWrapper")
+            contentWrapper = driver.find_element_by_id("contentWrapper")
             self.miniSleep()
             try:
-                row = contentWrapepr.find_elements_by_class_name("row")[int(planet.coords.split(':')[2])-1]
-                if row.find_element_by_class_name("playername").text.split('(')[0].strip() == target:
+                coordinataPianeta = int(planet.coords.split(':')[2])-1
+                row = contentWrapper.find_elements_by_class_name("row")[coordinataPianeta]
+                if row.find_element_by_class_name("playername").text.split('(')[0].strip() == player.getName():
                     moonIsPresent='js_no_action' not in row.find_element_by_class_name('moon').get_attribute('class')
                     if moonIsPresent:
                         moon = row.find_element_by_class_name('moon')
-                        self.player.logAttivita(planet.coords, True, self.get_activity(moon))
-                        self.player.logAttivita(planet.coords, False, self.get_activity(row))
+                        player.logAttivita(planet.coords, True, self.get_activity(moon))
+                        player.logAttivita(planet.coords, False, self.get_activity(row))
                     else:
-                        self.player.logAttivita(planet.coords, False, self.get_activity(row))
-                #else:
-                    #driver.find_element_by_id('bar').find_elements_by_tag_name('li')[4].find_element_by_tag_name('a').click()
-                    #self.miniSleep()
-                    #driver.find_element_by_class_name('tabsbelow').find_elements_by_tag_name('li')[2].find_element_by_tag_name('a').click()
-                    #self.miniSleep()
-                    #driver.find_element_by_id("searchText").send_keys(planet.name)
-                    #driver.find_element_by_id('searchForm').find_elements_by_tag_name('input')[1].click()
-                    #self.miniSleep()
-                    #searchTable = driver.find_element_by_class_name('searchTabs')
-
-                    #results = searchTable.find_elements_by_tag_name('tr')
-                    #self.miniSleep()
-                    #for result in results:
-                    #    if(result.find_element_by_class_name('userName').text.strip()==target):
-                    #        file.write(planet.coords + ' -- PIANETA SPOSTATO (' + planet.name + ' '+result.find_element_by_class_name('position').text+')' + '\r\n')
-                    #        coords = result.find_element_by_class_name('position').text.replace('[','').replace(']','')
-                    #        if(coords not in self.player.getAllCords()):
-                    #            #filePlanet.write(coords + '  ' + planet.name + '  ' + planet.id+'\n')
-                    #            break
+                        player.logAttivita(planet.coords, False, self.get_activity(row))
 
             except Exception as y:
+                self.logger.warning(player.getName())
+                self.logger.warning(planet.coords)
                 self.logger.exception(y)
                 self.logger.error("Errore caricamento pagina galassia.")
 
@@ -276,33 +279,54 @@ class Bot(object):
         self.logger.info('Stopping bot')
         os.unlink(self.pidfile)
 
-    def start(self):
+    def init( self ):
         self.logger.info('Starting bot')
         self.pid = str(os.getpid())
         self.pidfile = 'bot.pid'
         file(self.pidfile, 'w').write(self.pid)
+
+        dt = options['general']['dataa5'].split('.')  # 01.01.0001
+        data = date(int(dt[2]), int(dt[1]), int(dt[0]))
+        targhets = options['targets']['name'].split('&&')
+        for target in targhets:
+            if os.path.exists('Planets' + target + '.txt'):
+                self.players.append(self.getPlanetsFromFile(target, data))
+            else:
+                self.players.append(self.getPlanetsFromApi(target, data))
+
+    def checkLogin(self):
+        self.miniSleep()
+        self.driver.get(self.PAGES['main'])
+
+        self.logger.info(self.driver.current_url)
+
+        if self.driver.current_url.startswith(self.LANDING_PAGE):
+            self.logger.info('Rilevata disconnessione. Tentativo di riconnessione in corso...')
+            return False
+
+        return True
+
+    def start(self):
+        self.download_api_files()
+        self.init()
         try:
-            self.download_api_files()
             self.login_lobby()
-
             while True:
-                for target in options['targets']['name'].split('&&'):
-                    if os.path.exists('Planets' + target + '.txt'):
-                        self.getPlanetsFromFile(target)
-                    else:
-                        self.getPlanetsFromApi(target)
+                try:
+                    if not self.checkLogin():
+                        self.login_lobby()
 
-                    self.check_target(self.driver, target)
-                self.sleep()
+                    for player in self.players:
+                        self.check_target(self.driver, player)
+                    self.sleep()
+                except Exception as e:
+                    time.sleep(10)
+                    self.logger.exception(e)
+
         except Exception as e:
             self.logger.exception(e)
 
         # Chiudo il browser
         self.driver.quit()
         self.stop()
-
-#if __name__ == "__main__":
-   # credentials = options['credentials']
-  #  bot = Bot(credentials['username'], credentials['password'], credentials['server'])
-    #bot.start()
 

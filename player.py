@@ -3,11 +3,11 @@ from excelManager import ExcelManager
 
 class Player(object):
 
-    def __init__(self, nome):
+    def __init__(self, nome, data):
         self.name = nome;
         self.planets = []
         self.allCords = []
-        self.excel = ExcelManager(nome)
+        self.excel = ExcelManager(nome, data)
 
     def getAllCords(self):
         return self.allCords
@@ -16,7 +16,7 @@ class Player(object):
         return self.planets
 
     def getName(self):
-        return self.self.name
+        return self.name
 
     def addPlanet(self, planet):
         self.planets.append(planet)

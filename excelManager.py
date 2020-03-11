@@ -6,8 +6,8 @@ from datetime import date
 class ExcelManager(object):
 
 
-    def __init__(self, targhet):
-        self.dataA5 = date(2018, 12, 16)
+    def __init__(self, targhet, dataA5):
+        self.dataA5 = dataA5
         self.targhet = targhet
         self.file_name = targhet + '.xlsx'
         self.wb = self.load_excel(self.file_name)
